@@ -1,12 +1,10 @@
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import numpy as np
 import cv2
 import math
 import sys
 
 from color_filter import filter_green
-from hough_transform import draw_lines, find_lines
+from detect_horizon import detect_horizon_line
 
 value = 130
 
@@ -18,9 +16,13 @@ def on_trackbar(val):
 def pipeline():
     global value
     global frame
+    frame = frame[0:540, 0:]
     [mask,hsv] = filter_green(frame, value)
-    lines = find_lines(mask)
-    return draw_lines(cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), lines)
+    [x1,x2,y1,y2] = detect_horizon_line(mask)
+    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # per applicare la linea rossa
+    print(x1,x2,y1,y2)
+    cv2.line(mask, (x1, y1), (x2, y2), (0,0,255), 6)
+    return mask
 
 if (".jpg" in sys.argv[1] or ".png" in sys.argv[1]):
     frame = cv2.imread(sys.argv[1])
