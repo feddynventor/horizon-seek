@@ -1,44 +1,31 @@
-import numpy as np
+import sys
 import cv2
 import math
-import sys
 
-from color_filter import filter_green
-from detect_horizon import detect_horizon_line
+import kernel_filter
+import hue_filter
+import line_interpolation
 
-value = 130
+cap = cv2.VideoCapture(sys.argv[1])
+ret, frame = cap.read()
 
-def on_trackbar(val):
-    global value
-    value = val
-    cv2.imshow('mask', pipeline())
-
-def pipeline():
-    global value
-    global frame
-    frame = frame[0:540, 0:]
-    [mask,hsv] = filter_green(frame, value)
-    [x1,x2,y1,y2] = detect_horizon_line(mask)
-    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # per applicare la linea rossa
-    print(x1,x2,y1,y2)
-    cv2.line(mask, (x1, y1), (x2, y2), (0,0,255), 6)
-    return mask
-
-if (".jpg" in sys.argv[1] or ".png" in sys.argv[1]):
-    frame = cv2.imread(sys.argv[1])
-    cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
-    cv2.createTrackbar("min_value", 'mask' , 0, 255, on_trackbar)
-    cv2.imshow('mask', pipeline())
-    while(cv2.waitKey(1) != 113):
-        pass
-
-elif (".mp4" in sys.argv[1]):
-    cap = cv2.VideoCapture(sys.argv[1])
-    ret, frame = cap.read()
+cv2.namedWindow( 'hue_filter', cv2.WINDOW_NORMAL)
+cv2.namedWindow( 'interpolation', cv2.WINDOW_NORMAL)
 
 while('cap' in globals() and cap.isOpened()):
-    cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
-    cv2.imshow('mask', pipeline())
+
+    image_masked = hue_filter.isolate_color( frame ) 
+
+    cv2.imshow( 'hue_filter', image_masked )
+
+    binary_image = kernel_filter.filter( image_masked )
+    y_left, y_right = line_interpolation.interpolate(binary_image)
+
+    print( math.atan2( abs(y_left-y_right), 1920 )*180/math.pi, ' deg' )
+
+    image_marks = cv2.line( frame, (1,int(y_left)), (1919,int(y_right)), (0,255,127), 5 )
+    cv2.imshow( 'interpolation', image_marks)
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
     cv2.waitKey(20)
